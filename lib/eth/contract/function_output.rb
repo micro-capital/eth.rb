@@ -25,13 +25,17 @@ module Eth
     #
     # @param data [Hash] contract abi data.
     def initialize(data)
-      @type = Eth::Abi::Type.parse(data["type"])
+      @type = Eth::Abi::Type.parse(data["type"], data["components"])
       @name = data["name"]
     end
 
     # Returns complete types with subtypes, e.g., `uint256`.
     def type
       @type.base_type + @type.sub_type + @type.dimensions.map { |dimension| "[#{dimension > 0 ? dimension : ""}]" }.join("")
+    end
+
+    def parsed_type
+      @type
     end
   end
 end

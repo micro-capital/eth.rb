@@ -452,7 +452,7 @@ module Eth
       }.compact
 
       raw_result = eth_call(params)["result"]
-      types = func.outputs.map { |i| i.type }
+      types = func.outputs.map(&:parsed_type)
       return nil if raw_result == "0x"
       Eth::Abi.decode(types, raw_result)
     end
