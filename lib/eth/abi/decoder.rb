@@ -51,7 +51,7 @@ module Eth
               type(Type.parse(type.base_type), arg[pointer + 32, Util.ceil32(data_l) + 32])
             end
           end
-        elsif type.base_type == "tuple"
+        elsif type.base_type == "tuple" && type.dimensions.empty?
           offset = 0
           data = {}
           raise DecodingError, "Cannot decode tuples without known components" if type.components.nil?
@@ -73,11 +73,17 @@ module Eth
           l = Util.deserialize_big_endian_to_int arg[0, 32]
           nested_sub = type.nested_sub
 
-          # ref https://github.com/ethereum/tests/issues/691
-          raise NotImplementedError, "Decoding dynamic arrays with nested dynamic sub-types is not implemented for ABI." if nested_sub.dynamic?
+          if nested_sub.dynamic? # decoded dynamic-size arrays
+            # Layout: [len][ptr0]…[ptr{l-1}] then the element payloads.
+            positions = (0...l).map { |i| 32 + Util.deserialize_big_endian_to_int(arg[32 + 32*i, 32]) }
+            positions << arg.bytesize if positions.any? # end position
 
-          # decoded dynamic-sized arrays
-          (0...l).map { |i| type(nested_sub, arg[32 + nested_sub.size * i, nested_sub.size]) }
+            positions.each_cons(2).map do |start_pos, end_pos|
+              type(nested_sub, arg[start_pos...end_pos])
+            end
+          else # decoded static-size arrays
+            (0...l).map { |i| type(nested_sub, arg[32 + nested_sub.size * i, nested_sub.size]) }
+          end
         elsif !type.dimensions.empty?
           l = type.dimensions.first
           nested_sub = type.nested_sub
